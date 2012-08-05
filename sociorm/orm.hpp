@@ -10,14 +10,11 @@
 
 namespace soci { namespace orm {
 
-template<typename Action, typename Value>
-void field(Action& a, Value value, const char* column_name);
-
 class orm
 {
     orm();
-    orm(backend_factory const & factory, std::string const & connectString);
-    orm(std::string const & backendName, std::string const & connectString);
+    orm(backend_factory const & factory, std::string const & connect_string);
+    orm(std::string const & backendName, std::string const & connect_string);
     explicit orm(std::string const & connectString);
     explicit orm(connection_pool & pool);
 
