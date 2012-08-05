@@ -9,7 +9,9 @@ Advantages:
 
 How to build: 
 1. Create folder projects and cd there. 
-2. Download prebuilded sqlite3 release version. Unpack it into projects 
+2. Download prebuilded sqlite3 release version. 
+https://github.com/downloads/tarasko/sociorm/sqlite3.install.7z
+Unpack it into projects folder.
 3. Run clone with --recursive flag in projects/ directory git clone --recursive git://github.com/tarasko/sociorm.git 
 4. Create new folder in projects. Call it sociorm.msvc and cd there. 
 5. Run cmake ..\sociorm 
