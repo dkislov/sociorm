@@ -1,0 +1,16 @@
+ORM for C++ built on top of SOCI.
+
+Inspired by Wt::Dbo project.
+
+Advantages:
+1. Boost license. Free for commercial use and redistribution.
+2. Add support for class hierarchies.
+3. Support more backends than Wt::Dbo. Thanks to SOCI project.
+
+How to build: 
+1. Create folder projects and cd there. 
+2. Download prebuilded sqlite3 release version. Unpack it into projects 
+3. Run clone with --recursive flag in projects/ directory git clone --recursive git://github.com/tarasko/sociorm.git 
+4. Create new folder in projects. Call it sociorm.msvc and cd there. 
+5. Run cmake ..\sociorm 
+6. Open generated solution and start to do something on project sociorm.
