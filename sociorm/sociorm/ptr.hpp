@@ -1,6 +1,6 @@
 #pragma once
 
-#include "safe_bool.hpp"
+#include <sociorm/detail/safe_bool.hpp>
 
 namespace soci { namespace orm {
 

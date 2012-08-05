@@ -2,23 +2,26 @@
 
 #include <soci.h>
 
-#include "ptr.hpp"
-#include "query.hpp"
+#include <sociorm/ptr.hpp>
+#include <sociorm/query.hpp>
 
 #include <string>
 #include <memory>
 
 namespace soci { namespace orm {
 
+class class_info 
+{
+};
+
 class orm
 {
-    orm();
+public:
+    orm(soci::session& s);
     orm(backend_factory const & factory, std::string const & connect_string);
     orm(std::string const & backendName, std::string const & connect_string);
     explicit orm(std::string const & connectString);
     explicit orm(connection_pool & pool);
-
-    ~orm();
 
     /// \brief Return underlying soci session.
     session& session();
@@ -88,7 +91,45 @@ private:
     };
 
     std::unique_ptr<soci::session, smart_deleter> session_;
+    std::map<std::type_info, class_info> class_map_;
 };
+
+inline orm::orm(soci::session& s)
+    : session_(&s, smart_deleter(false))
+{    
+}
+
+inline orm::orm(backend_factory const & factory, std::string const & connect_string)
+    : session_(new soci::session(factory, connect_string), smart_deleter(true))
+{
+}
+
+inline orm::orm(std::string const & backend_name, std::string const & connect_string)
+    : session_(new soci::session(backend_name, connect_string), smart_deleter(true))
+{
+}
+
+inline orm::orm(std::string const & connect_string)
+    : session_(new soci::session(connect_string), smart_deleter(true))
+{
+}
+
+inline orm::orm(connection_pool & pool)
+    : session_(new soci::session(pool), smart_deleter(true))
+{
+}
+
+inline session& orm::session()
+{
+    return *session_;
+}
+
+template<typename Class>
+void orm::map_class(const char* table_name)
+{
+
+    class_map_[typeid(Class)] = 
+}
 
 /// \brief Override this to make type persistable non-intrusively.
 template<typename Action, typename Type>

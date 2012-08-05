@@ -1,7 +1,7 @@
 #include <soci.h>
 #include <sqlite3/soci-sqlite3.h>
 
-#include "orm.hpp"
+#include <sociorm/orm.hpp>
 
 #include <iostream>
 #include <string>
@@ -35,6 +35,7 @@ int main()
 {
     try
     {
+        soci::orm::orm orm(sqlite3, "service=mydb user=john password=secret");
         session sql(sqlite3, "service=mydb user=john password=secret");
 		sql.once << "drop table if exists phonebook";
 		sql.once << "create table phonebook(id integer primary key, name varchar(20))";
