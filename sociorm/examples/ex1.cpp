@@ -36,9 +36,8 @@ int main()
     try
     {
         soci::orm::orm orm(sqlite3, "service=mydb user=john password=secret");
-        session sql(sqlite3, "service=mydb user=john password=secret");
-		sql.once << "drop table if exists phonebook";
-		sql.once << "create table phonebook(id integer primary key, name varchar(20))";
+        orm.map_class<phonebook>("phonebook");
+
     }
     catch (exception const &e)
     {

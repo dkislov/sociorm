@@ -10,8 +10,12 @@
 
 namespace soci { namespace orm {
 
-class class_info 
+struct field_info
 {
+    int type_;
+    const char* column_name_;
+    bool is_pk_;
+    bool is_fk_;
 };
 
 class orm
@@ -91,7 +95,7 @@ private:
     };
 
     std::unique_ptr<soci::session, smart_deleter> session_;
-    std::map<std::type_info, class_info> class_map_;
+    std::map<std::type_info, detail::class_info> class_map_;
 };
 
 inline orm::orm(soci::session& s)
@@ -127,8 +131,6 @@ inline session& orm::session()
 template<typename Class>
 void orm::map_class(const char* table_name)
 {
-
-    class_map_[typeid(Class)] = 
 }
 
 /// \brief Override this to make type persistable non-intrusively.

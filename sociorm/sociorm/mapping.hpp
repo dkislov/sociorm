@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sociorm/detail/class_info.hpp>
+
 namespace soci { namespace orm {
 
 /// \brief Define mapping for simple field.
@@ -17,5 +19,13 @@ void belongs_to(Action& a, ptr<Value> value, const char* fk_column_name);
 /// \brief Define hierarchy relation.
 template<typename Action, typename BaseType>
 void base_type(Action& a);
+
+template<typename Value>
+void field(detail::class_info& ci, Value&, const char* column_name)
+{
+    field_info fi = {
+
+    ci.fields_.push_back(
+}
 
 }}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sociorm/detail/safe_bool.hpp>
+#include <sociorm/detail/class_info.hpp>
 
 namespace soci { namespace orm {
 
@@ -16,7 +17,13 @@ public:
     // TODO: Currently this is int, but on next step we must support complex id type within type traits.
     typedef int id_type;
 
-    ptr(orm* orm, T&& c);
+    /// \brief Construct null pointer
+    ptr();
+
+    /// \brief Construct pointer from object, insert object into database
+    ptr(soci::orm::orm* orm, T&& c, id_type id);
+
+    /// \brief Construct pointer from object id, read object from database
 
     /// \brief Flush object into database, if marked dirty.
     void flush();
@@ -49,6 +56,14 @@ public:
 private:
     struct data
     {
+        data(soci::orm::orm* orm, T&& obj, id_type id) 
+            : orm_(orm)
+            , obj_(std::forward<T>(obj))
+            , id_(id)
+            , is_dirty_(false)
+        {
+        }
+
         soci::orm::orm* orm_;  //!< Parent ORM object.
         T obj_;                //!< Object itself.
         id_type id_;           //!< Object id in database.
@@ -57,5 +72,78 @@ private:
 
     std::shared_ptr<data> data_;
 };
+
+template<typename T>
+ptr<T>::ptr()
+{
+}
+
+template<typename T>
+ptr<T>::ptr(soci::orm::orm* orm, T&& c, id_type id)
+    : data_(std::make_shared<T>(orm, std::forward<T>(c), id))
+{
+}
+
+template<typename T>
+void ptr<T>::flush()
+{
+    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    // Get prepared flush query for type. 
+    // Good place to put it is class_info
+}
+
+template<typename T>
+T* ptr<T>::modify()
+{
+    data_->is_dirty_ = true;
+    return &data_->obj_;
+}
+
+template<typename T>
+void ptr<T>::remove()
+{
+    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    // Get prepared remove query for type.
+}
+
+template<typename T>
+void ptr<T>::reread()
+{
+    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    // Get prepared select by id query for type.
+}
+
+template<typename T>
+const T* ptr<T>::operator->() const
+{
+    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    return &data_->obj_;
+}
+
+/// \brief Return pointer to const object.
+template<typename T>
+const T* ptr<T>::get() const
+{
+    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    return &data_->obj_;
+}
+
+/// \brief Perform boolean test.
+template<typename T>
+bool ptr<T>::boolean_test() const
+{
+    return data_;
+}
+
+/// \brief Return parent orm object.
+template<typename T>
+orm& ptr<T>::orm()
+{
+    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+}
+
+/// \brief Return object id
+template<typename T>
+typename ptr<T>::id_type ptr<T>::id();
 
 }} // namespace soci, orm
