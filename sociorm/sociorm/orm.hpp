@@ -2,6 +2,7 @@
 
 #include <soci.h>
 
+#include <sociorm/base.hpp>
 #include <sociorm/ptr.hpp>
 #include <sociorm/query.hpp>
 
@@ -9,14 +10,6 @@
 #include <memory>
 
 namespace soci { namespace orm {
-
-struct field_info
-{
-    int type_;
-    const char* column_name_;
-    bool is_pk_;
-    bool is_fk_;
-};
 
 class orm
 {
@@ -40,7 +33,7 @@ public:
 
     /// \brief Insert new object to database.
     template<typename Class>
-    void add(Class&& obj);
+    void save(Class&& obj);
 
     /// \brief Insert new object to database and return reference to created object.
     template<typename Class>
@@ -94,8 +87,16 @@ private:
         bool del_;
     };
 
+    struct type_info_less
+    {
+        bool operator ()(const std::type_info* a, const std::type_info* b) const 
+        {
+            return a->before(*b);
+        }
+    };
+
     std::unique_ptr<soci::session, smart_deleter> session_;
-    std::map<std::type_info, detail::class_info> class_map_;
+    std::map<const std::type_info*, detail::class_info, type_info_less> class_data_;
 };
 
 inline orm::orm(soci::session& s)
@@ -131,6 +132,33 @@ inline session& orm::session()
 template<typename Class>
 void orm::map_class(const char* table_name)
 {
+}
+
+template<typename Class>
+void orm::save(Class&& obj)
+{
+    typedef typename std::remove_reference<Class>::type class_type;
+
+    detail::class_info& data = class_data_[&typeid(class_type)];
+
+    // TODO: Thread-safety
+    if (!data.insert_)
+    {
+        data.insert_.reset(new statement(session()));
+        data.insert_->alloc();
+
+        detail::collect_names_and_exchange_action collect_action(*data.insert_, data.insert_use_proxies_);
+
+        obj.persist(collect_action);
+
+        const char* tn = class_type::table_name();
+        collect_action.prepare_insert_statement(tn);
+    }
+
+    detail::bind_values bind_action(*data.insert_, data.insert_use_proxies_);
+    obj.persist(bind_action);
+
+    data.insert_->execute(true);
 }
 
 /// \brief Override this to make type persistable non-intrusively.

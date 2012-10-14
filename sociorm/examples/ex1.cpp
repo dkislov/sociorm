@@ -10,17 +10,24 @@
 using namespace soci;
 using namespace std;
 
-class phonebook
+class phonebook : public orm::base
 {
 public:
+    phonebook() {}
+    phonebook(const char* name, const char* phone) : name_(name), phone_(phone) {}
+
+    static const char* table_name() 
+    {
+        return "phonebook"; 
+    }
+
 	template<typename Action>
 	void persist(Action& a)
 	{
-		orm::field(a, "name", name_);
-		orm::field(a, "phone", phone_);		
+		a.field("name", name_);
+		a.field("phone", phone_);		
 	}
 
-private:
 	string name_;
 	string phone_;
 };
@@ -34,10 +41,20 @@ bool getName(string &name)
 int main()
 {
     try
-    {
-        soci::orm::orm orm(sqlite3, "service=mydb user=john password=secret");
-        orm.map_class<phonebook>("phonebook");
+    {   
+        orm::orm s(sqlite3, "mydb.sqlite3");
 
+        phonebook book[] = { phonebook("taras", "3123"), phonebook("julia", "32133") };
+
+        s.session().once << "create temp table phonebook (name varchar(20) primary key, phone varchar(20) )";
+
+        s.save(book[0]);
+        s.save(book[1]);
+
+        rowset<phonebook> rs = (s.session().prepare << "select * from phonebook");
+
+        vector<phonebook> v(rs.begin(), rs.end());
+        return 0;
     }
     catch (exception const &e)
     {
