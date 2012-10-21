@@ -5,20 +5,29 @@
 #include <sociorm/base.hpp>
 #include <sociorm/ptr.hpp>
 #include <sociorm/query.hpp>
+#include <sociorm/detail/field_proxy.hpp>
+#include <sociorm/detail/type_info_ptr_less.hpp>
 
 #include <string>
 #include <memory>
 
 namespace soci { namespace orm {
 
-class orm
+/// Primary key selection:
+/// Persist must contain one of 
+/// - primary_key("id", id_)
+/// - base<base_type>()
+
+class manager
 {
 public:
-    orm(soci::session& s);
-    orm(backend_factory const & factory, std::string const & connect_string);
-    orm(std::string const & backendName, std::string const & connect_string);
-    explicit orm(std::string const & connectString);
-    explicit orm(connection_pool & pool);
+    typedef std::map<const std::type_info*, detail::class_info, detail::type_info_ptr_less> class_info_map;
+
+    manager(soci::session& s);
+    manager(backend_factory const & factory, std::string const & connect_string);
+    manager(std::string const & backendName, std::string const & connect_string);
+    explicit manager(std::string const & connectString);
+    explicit manager(connection_pool & pool);
 
     /// \brief Return underlying soci session.
     session& session();
@@ -31,9 +40,9 @@ public:
     template<typename Class>
     void update_schema();
 
-    /// \brief Insert new object to database.
+    /// \brief Insert new object to database, and return primary key
     template<typename Class>
-    void save(Class&& obj);
+    typename std::remove_reference<Class>::type::primary_key_type save(Class&& obj);
 
     /// \brief Insert new object to database and return reference to created object.
     template<typename Class>
@@ -47,10 +56,10 @@ public:
     /// \code
     ///
     /// // Query first object that satisfies conditions
-    /// ptr<User> joe = orm.query<User>().where("name = ?").bind("Joe");
+    /// ptr<User> joe = manager.query<User>().where("name = ?").bind("Joe");
     ///
     /// // The same as above
-    /// ptr<User> joe = orm.query<ptr<User>>().where("name = ?").bind("Joe");
+    /// ptr<User> joe = manager.query<ptr<User>>().where("name = ?").bind("Joe");
     /// 
     /// // Query all objects satisfying conditions, iterate over them
     /// typedef collection<ptr<User>> Users;
@@ -66,7 +75,7 @@ public:
     /// }
     /// 
     /// // Make non object query
-    /// int count = orm.query<int>("select count(1) from user").where("name = ?").bind("Joe");
+    /// int count = manager.query<int>("select count(1) from user").where("name = ?").bind("Joe");
     ///
     /// \endcode
     template<typename Class>
@@ -87,78 +96,83 @@ private:
         bool del_;
     };
 
-    struct type_info_less
-    {
-        bool operator ()(const std::type_info* a, const std::type_info* b) const 
-        {
-            return a->before(*b);
-        }
-    };
-
     std::unique_ptr<soci::session, smart_deleter> session_;
-    std::map<const std::type_info*, detail::class_info, type_info_less> class_data_;
+    class_info_map class_data_;
 };
 
-inline orm::orm(soci::session& s)
+}} // namespace soci, orm
+
+#include <sociorm/detail/collect_names_and_exchange_action.hpp>
+#include <sociorm/detail/bind_values_action.hpp>
+
+namespace soci { namespace orm {
+
+inline manager::manager(soci::session& s)
     : session_(&s, smart_deleter(false))
 {    
 }
 
-inline orm::orm(backend_factory const & factory, std::string const & connect_string)
+inline manager::manager(backend_factory const & factory, std::string const & connect_string)
     : session_(new soci::session(factory, connect_string), smart_deleter(true))
 {
 }
 
-inline orm::orm(std::string const & backend_name, std::string const & connect_string)
+inline manager::manager(std::string const & backend_name, std::string const & connect_string)
     : session_(new soci::session(backend_name, connect_string), smart_deleter(true))
 {
 }
 
-inline orm::orm(std::string const & connect_string)
+inline manager::manager(std::string const & connect_string)
     : session_(new soci::session(connect_string), smart_deleter(true))
 {
 }
 
-inline orm::orm(connection_pool & pool)
+inline manager::manager(connection_pool & pool)
     : session_(new soci::session(pool), smart_deleter(true))
 {
 }
 
-inline session& orm::session()
+inline session& manager::session()
 {
     return *session_;
 }
 
 template<typename Class>
-void orm::map_class(const char* table_name)
+void manager::map_class(const char* table_name)
 {
+    detail::class_info& data = class_data_[&typeid(Class)];
+
+    if (data.insert_)
+        return;
+
+    data.table_ = table_name;
+
+    data.insert_.reset(new statement(session()));
+    data.insert_->alloc();
+
+    detail::collect_names_and_exchange_action<Class> collect_action(this->class_data_, *data.insert_, data.insert_use_proxies_);
+
+    Class& obj = *(Class*)nullptr;
+    obj.persist(collect_action);
+
+    collect_action.prepare_insert_statement(table_name);
 }
 
 template<typename Class>
-void orm::save(Class&& obj)
+typename std::remove_reference<Class>::type::primary_key_type manager::save(Class&& obj)
 {
     typedef typename std::remove_reference<Class>::type class_type;
 
-    detail::class_info& data = class_data_[&typeid(class_type)];
+    detail::class_info& data = class_data_.at(&typeid(class_type));
 
-    // TODO: Thread-safety
-    if (!data.insert_)
-    {
-        data.insert_.reset(new statement(session()));
-        data.insert_->alloc();
-
-        detail::collect_names_and_exchange_action collect_action(*data.insert_, data.insert_use_proxies_);
-
-        obj.persist(collect_action);
-
-        const char* tn = class_type::table_name();
-        collect_action.prepare_insert_statement(tn);
-    }
-
-    detail::bind_values bind_action(*data.insert_, data.insert_use_proxies_);
+    detail::bind_values<class_type> bind_action(*this, obj, *data.insert_, data.insert_use_proxies_);
     obj.persist(bind_action);
 
     data.insert_->execute(true);
+
+    if (is_serial<class_type::primary_key_type>::value)
+        return data.insert_->get_last_insert_row_id();
+    else return obj.pk();
 }
 
 /// \brief Override this to make type persistable non-intrusively.

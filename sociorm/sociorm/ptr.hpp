@@ -87,7 +87,7 @@ ptr<T>::ptr(soci::orm::orm* orm, T&& c, id_type id)
 template<typename T>
 void ptr<T>::flush()
 {
-    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    BOOST_ASSERT(data_ && "null soci::orm::ptr object")
     // Get prepared flush query for type. 
     // Good place to put it is class_info
 }
@@ -102,21 +102,21 @@ T* ptr<T>::modify()
 template<typename T>
 void ptr<T>::remove()
 {
-    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    BOOST_ASSERT(data_ && "null soci::orm::ptr object")
     // Get prepared remove query for type.
 }
 
 template<typename T>
 void ptr<T>::reread()
 {
-    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    BOOST_ASSERT(data_ && "null soci::orm::ptr object")
     // Get prepared select by id query for type.
 }
 
 template<typename T>
 const T* ptr<T>::operator->() const
 {
-    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    BOOST_ASSERT(data_ && "null soci::orm::ptr object")
     return &data_->obj_;
 }
 
@@ -124,7 +124,7 @@ const T* ptr<T>::operator->() const
 template<typename T>
 const T* ptr<T>::get() const
 {
-    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    BOOST_ASSERT(data_ && "null soci::orm::ptr object")
     return &data_->obj_;
 }
 
@@ -139,7 +139,7 @@ bool ptr<T>::boolean_test() const
 template<typename T>
 orm& ptr<T>::orm()
 {
-    BOOST_ASSERT(data_, "null soci::orm::ptr object")
+    BOOST_ASSERT(data_ && "null soci::orm::ptr object")
 }
 
 /// \brief Return object id

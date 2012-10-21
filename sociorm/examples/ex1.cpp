@@ -2,6 +2,7 @@
 #include <sqlite3/soci-sqlite3.h>
 
 #include <sociorm/orm.hpp>
+#include <sociorm/serial.hpp>
 
 #include <iostream>
 #include <string>
@@ -10,43 +11,69 @@
 using namespace soci;
 using namespace std;
 
-class phonebook : public orm::base
+struct notebook : public orm::base<orm::serial>
 {
-public:
-    phonebook() {}
-    phonebook(const char* name, const char* phone) : name_(name), phone_(phone) {}
-
-    static const char* table_name() 
+    template<typename Action>
+    void persist(Action& a)
     {
-        return "phonebook"; 
+        a.primary_key("id");
+        a.field("first_name", first_name_);
+        a.field("last_name", last_name_);
+    }
+
+    string first_name_;
+    string last_name_;
+};
+
+struct phonebook : public notebook
+{
+    phonebook() {}
+
+    phonebook(const char* first_name, const char* last_name, const char* phone)
+        : phone_(phone)
+    {
+        first_name_ = first_name;
+        last_name_ = last_name;
     }
 
 	template<typename Action>
 	void persist(Action& a)
 	{
-		a.field("name", name_);
+        a.derived_from<notebook>("id");
 		a.field("phone", phone_);		
 	}
 
-	string name_;
 	string phone_;
 };
 
 bool getName(string &name)
 {
     cout << "Enter name: ";
-    return cin >> name;
+    return (cin >> name) == nullptr;
 }
 
 int main()
 {
     try
     {   
-        orm::orm s(sqlite3, "mydb.sqlite3");
+        orm::manager s(sqlite3, "mydb.sqlite3");
 
-        phonebook book[] = { phonebook("taras", "3123"), phonebook("julia", "32133") };
+        phonebook book[] = { phonebook("taras", "kozlov", "3123"), phonebook("julia", "dudnikova", "32133") };
 
-        s.session().once << "create temp table phonebook (name varchar(20) primary key, phone varchar(20) )";
+        s.session().once << 
+            "create temp table notebook ( "
+                "id integer primary key autoincrement, "
+                "first_name varchar(20), "
+                "last_name varchar(20) )";
+
+        s.session().once << 
+            "create temp table phonebook ( "
+            "id integer primary key, "
+            "phone varchar(20), "
+            "foreign key(id) references notebook(id) on delete cascade)";
+
+        s.map_class<notebook>("notebook");
+        s.map_class<phonebook>("phonebook");
 
         s.save(book[0]);
         s.save(book[1]);
