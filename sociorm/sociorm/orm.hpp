@@ -171,7 +171,11 @@ typename std::remove_reference<Class>::type::primary_key_type manager::save(Clas
     data.insert_->execute(true);
 
     if (is_serial<class_type::primary_key_type>::value)
-        return data.insert_->get_last_insert_row_id();
+    {
+        long id;
+        session().get_last_insert_id(data.table_, id);
+        return id;
+    }
     else return obj.pk();
 }
 
